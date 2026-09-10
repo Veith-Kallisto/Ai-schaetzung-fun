@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -41,18 +42,27 @@ function makeTableTexture() {
   grad.addColorStop(1, 'rgba(12,10,31,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 1024, 1024);
-  // feines Samt-Rauschen
-  const img = g.getImageData(0, 0, 1024, 1024);
-  const d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i + 3] === 0) continue;
-    const n = (Math.random() - 0.5) * 10;
-    d[i] += n; d[i + 1] += n; d[i + 2] += n;
-  }
-  g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
+  // feines Samt-Rauschen später nachlegen (kleine Kachel, nicht 1 Mio. Zufallszahlen beim Start)
+  t.addNoise = () => {
+    const tile = document.createElement('canvas');
+    tile.width = tile.height = 256;
+    const tg = tile.getContext('2d');
+    const img = tg.createImageData(256, 256);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = d[i + 1] = d[i + 2] = 128;
+      d[i + 3] = Math.random() * 22;
+    }
+    tg.putImageData(img, 0, 0);
+    g.globalCompositeOperation = 'overlay';
+    g.fillStyle = g.createPattern(tile, 'repeat');
+    g.fillRect(0, 0, 1024, 1024);
+    g.globalCompositeOperation = 'source-over';
+    t.needsUpdate = true;
+  };
   return t;
 }
 
@@ -130,7 +140,6 @@ export class DiceStage {
     key.shadow.camera.left = key.shadow.camera.bottom = -6;
     key.shadow.camera.right = key.shadow.camera.top = 6;
     key.shadow.bias = -0.0008;
-    key.shadow.radius = 4;
     scene.add(key);
     const rim = new THREE.PointLight(0x8b6cff, 30, 16, 1.6);
     rim.position.set(-4.5, 3.5, -3);
@@ -140,10 +149,13 @@ export class DiceStage {
     scene.add(rim2);
 
     // Tisch
+    const tableTex = makeTableTexture();
     const table = new THREE.Mesh(
       new THREE.PlaneGeometry(18, 18),
-      new THREE.MeshStandardMaterial({ map: makeTableTexture(), roughness: 0.95, metalness: 0.05, transparent: true }),
+      new THREE.MeshStandardMaterial({ map: tableTex, roughness: 0.95, metalness: 0.05, transparent: true }),
     );
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 300));
+    idle(() => tableTex.addNoise());
     table.rotation.x = -Math.PI / 2;
     table.receiveShadow = true;
     scene.add(table);
@@ -185,16 +197,25 @@ export class DiceStage {
 
     for (let i = 0; i < 2; i++) this.dice.push(this.createDie(i));
 
-    this._ro = new ResizeObserver(() => this.resize());
+    this._needsResize = false;
+    this._ro = new ResizeObserver(() => { this._needsResize = true; this.wake(); });
     this._ro.observe(container);
     this.resize();
+    this.visible = true;
+    this._io = new IntersectionObserver((entries) => {
+      this.visible = entries.some((e) => e.isIntersecting);
+      if (this.visible) this.wake();
+    });
+    this._io.observe(container);
+    this._frameNo = 0;
     this.restDice([1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]);
 
     this.baseFov = this.camera.fov;
     this.slowmo = { done: true, until: 0 };
     this._clock = new THREE.Clock();
     this._frame = this._frame.bind(this);
-    this.renderer.setAnimationLoop(this._frame);
+    this._loopRunning = false;
+    this.wake();
   }
 
   createDie(index) {
@@ -203,23 +224,28 @@ export class DiceStage {
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
+    // Augen: alle dunklen Augen zu einer Geometrie verschmolzen (2 statt 21 Draw Calls je Würfel)
+    const dark = [];
+    let gold = null;
     for (const face of FACES) {
       const n = face.normal;
       // zwei Tangenten zur Fläche
       const tU = Math.abs(n.y) > 0.5 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3().crossVectors(n, UP).normalize();
       const tV = new THREE.Vector3().crossVectors(n, tU).normalize();
-      const mat = face.value === 1 ? this.pipMatGold : this.pipMat;
       for (const [u, v] of PIPS[face.value]) {
-        const pip = new THREE.Mesh(this.pipGeo, mat);
         const offset = face.value === 1 ? 0 : 0.27;
-        pip.position.copy(n).multiplyScalar(HALF - 0.055)
+        const pos = n.clone().multiplyScalar(HALF - 0.055)
           .addScaledVector(tU, u * offset)
           .addScaledVector(tV, v * offset);
-        pip.scale.set(1, 1, 1);
-        if (face.value === 1) pip.scale.setScalar(1.35);
-        group.add(pip);
+        const geo = this.pipGeo.clone();
+        if (face.value === 1) geo.scale(1.35, 1.35, 1.35);
+        geo.translate(pos.x, pos.y, pos.z);
+        if (face.value === 1) gold = geo; else dark.push(geo);
       }
     }
+    const pips = new THREE.Mesh(mergeGeometries(dark, false), this.pipMat);
+    group.add(pips);
+    group.add(new THREE.Mesh(gold, this.pipMatGold));
     this.scene.add(group);
 
     const shape = new CANNON.Box(new CANNON.Vec3(HALF * 0.97, HALF * 0.97, HALF * 0.97));
@@ -258,10 +284,21 @@ export class DiceStage {
     mk(0, -d, [0, 0, 0]);
   }
 
+  wake() {
+    if (!this._loopRunning) {
+      this._loopRunning = true;
+      this.renderer.setAnimationLoop(this._frame);
+    }
+  }
+
   resize() {
+    this._needsResize = false;
     const el = this.container;
     const width = Math.max(1, el.clientWidth);
     const height = Math.max(1, el.clientHeight);
+    // Pixelbudget: hohe DPR nur, solange die Bühne klein ist
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.75, Math.sqrt(1.2e6 / (width * height)));
+    this.renderer.setPixelRatio(Math.max(1, dpr));
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
@@ -271,7 +308,6 @@ export class DiceStage {
     this.reserveTop = portrait ? 0.34 : 0.2;
     if (this.arena.w !== w || this.walls.length === 0) this.setArena(w, d);
     this.fitCamera();
-    this.render();
   }
 
   // Kamera so weit zurückziehen, dass die ganze Arena sichtbar ist.
@@ -320,6 +356,7 @@ export class DiceStage {
   /** Wirft die Würfel und liefert die Augenzahlen, sobald sie liegen. */
   roll() {
     if (this.rolling) return this.rollPromise;
+    this.wake();
     this.rolling = true;
     this.snapping = [];
     const { w, d } = this.arena;
@@ -340,7 +377,7 @@ export class DiceStage {
     });
     this.rollStart = performance.now();
     this.simTime = 0;
-    this.settledFrames = 0;
+    this.calmSince = -1;
     this.slowmo = { done: false, until: 0 };
     this.baseFov = this.camera.fov;
     this.rollPromise = new Promise((resolve) => { this._resolveRoll = resolve; });
@@ -384,13 +421,21 @@ export class DiceStage {
   }
 
   _frame() {
-    const dt = Math.min(this._clock.getDelta(), 0.05);
+    const dt = Math.min(this._clock.getDelta(), 0.1);
     this.t += dt;
+    this._frameNo++;
+    if (this._needsResize) this.resize();
+    const active = this.rolling || this.snapping.length > 0;
+    if (!active) {
+      // Ruhezustand: unsichtbar → Schleife anhalten; sichtbar → nur jeden zweiten Frame zeichnen
+      if (!this.visible) { this._loopRunning = false; this.renderer.setAnimationLoop(null); return; }
+      if (this._frameNo % 2) return;
+    }
     if (this.rolling) {
       const now = performance.now();
       let scale = 1;
       if (this.slowmo.until > now) scale = 0.35;
-      this.world.step(1 / 120, dt * scale, 8);
+      this.world.step(1 / 120, dt * scale, 12);
       this.simTime += dt * scale;
       let calm = true;
       let maxSpeed = 0;
@@ -414,8 +459,8 @@ export class DiceStage {
         this.camera.fov += (wantFov - this.camera.fov) * 0.12;
         this.camera.updateProjectionMatrix();
       }
-      if (calm && simMs > 500) this.settledFrames++; else this.settledFrames = 0;
-      if (this.settledFrames > 14) this._finishRoll(false);
+      if (calm && simMs > 500) { if (this.calmSince < 0) this.calmSince = this.simTime; } else this.calmSince = -1;
+      if (this.calmSince >= 0 && this.simTime - this.calmSince > 0.24) this._finishRoll(false);
       else if (simMs > 6500 || elapsed > 9000) this._finishRoll(true);
     }
     // sanftes Einrasten nach dem Wurf
@@ -457,6 +502,7 @@ export class DiceStage {
 
   dispose() {
     this.renderer.setAnimationLoop(null);
+    this._io.disconnect();
     this._ro.disconnect();
     this.renderer.dispose();
   }

@@ -27,11 +27,18 @@ const DICE_GLYPHS = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
 let stage = null;
 let busy = false;
+let userTouched = false;
+window.addEventListener('pointerdown', () => { userTouched = true; }, { once: true, passive: true });
+window.addEventListener('keydown', () => { userTouched = true; }, { once: true });
 let afterthoughtToken = 0;
 let last = null; // { text, unit, mood }
 
 // ---------- Hilfen ----------
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const submitForm = () => {
+  if (els.form.requestSubmit) els.form.requestSubmit();
+  else els.form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+};
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 function pickN(arr, n) {
   const copy = [...arr];
@@ -39,6 +46,13 @@ function pickN(arr, n) {
   while (copy.length && out.length < n) out.push(copy.splice(Math.floor(Math.random() * copy.length), 1)[0]);
   return out;
 }
+// Deutsche Typografie: schmales geschütztes Leerzeichen vor %, € und Einheiten, z. B. mit festem Leerzeichen
+function typo(s) {
+  return String(s)
+    .replace(/ (%|€|h|PT|Uhr)(?![\p{L}])/gu, '\u202f$1')
+    .replace(/z\. B\./g, 'z.\u00a0B.');
+}
+const plural = (n, one, many) => `${fmt.format(n)} ${n === 1 ? one : many}`;
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -162,7 +176,7 @@ function addMessage(role, html, { wide = false } = {}) {
   return { wrap, bubble };
 }
 function addGenieText(paragraphs) {
-  const html = paragraphs.map((p) => `<p>${p}</p>`).join('');
+  const html = paragraphs.map((p) => `<p>${typo(p)}</p>`).join('');
   return addMessage('genie', html);
 }
 
@@ -174,7 +188,7 @@ function showThinking(lines) {
   let i = 0;
   const show = (text) => {
     const fresh = lineEl.cloneNode(false);
-    fresh.textContent = text ?? lines[i % lines.length];
+    fresh.textContent = typo(text ?? lines[i % lines.length]);
     lineEl.replaceWith(fresh);
     lineEl = fresh;
     i++;
@@ -202,7 +216,7 @@ function showEmptyChips() {
   renderChips(C.EMPTY_CHIPS, (text) => {
     els.input.value = text;
     autoGrow();
-    els.form.requestSubmit();
+    submitForm();
   });
 }
 function showFollowupChips() {
@@ -252,9 +266,9 @@ function compute(dice, plan) {
   switch (plan.unit) {
     case 'sp': {
       value = nextFib(raw);
-      rows.push({ label: 'Consulting-Rundung: nächste Fibonacci-Zahl', value: `→ ${fmt.format(value)}` });
+      rows.push({ label: 'Fibonacci-Rundung (Planning Poker)', value: `→ ${fmt.format(value)}` });
       unitLabel = value === 1 ? u.singular : u.plural;
-      approx = `≈ ${fmt.format(Math.round(value * 1.5))} Personentage (Velocity von 2019)`;
+      approx = `≈ ${plural(Math.round(value * 1.5), 'Personentag', 'Personentage')} (Velocity von 2019)`;
       break;
     }
     case 'eur': {
@@ -262,19 +276,19 @@ function compute(dice, plan) {
       rows.push({ label: `Tagessatz × ${fmt.format(pt)} PT`, value: `${fmt.format(C.DAY_RATE)} €` });
       value = roundNice(pt * C.DAY_RATE);
       unitLabel = '€ netto';
-      approx = `≈ ${fmt.format(pt)} Personentage · zzgl. MwSt., Reisekosten und Nachträgen`;
+      approx = `≈ ${plural(pt, 'Personentag', 'Personentage')} · zzgl. MwSt., Reisekosten und Nachträgen`;
       break;
     }
     case 'hours': {
       value = Math.max(1, Math.round(raw * 8));
       rows.push({ label: '1 PT = 8 h (theoretisch)', value: '× 8' });
       unitLabel = value === 1 ? u.singular : u.plural;
-      approx = `≈ ${fmt.format(Math.max(1, Math.round(value / 8)))} Personentage, inkl. Kaffee`;
+      approx = `≈ ${plural(Math.max(1, Math.round(value / 8)), 'Personentag', 'Personentage')}, inkl. Kaffee`;
       break;
     }
     case 'weeks': {
       value = Math.max(1, Math.round(raw / 5));
-      rows.push({ label: '5 PT = 1 Woche (Urlaub nicht eingerechnet)', value: '÷ 5' });
+      rows.push({ label: '5 PT = 1 Woche (Urlaub exklusive)', value: '÷ 5' });
       unitLabel = value === 1 ? u.singular : u.plural;
       approx = value >= 52
         ? `≈ ${(value / 52).toFixed(1).replace('.', ',')} Jahre – Zeit für ein Steering Committee`
@@ -285,7 +299,7 @@ function compute(dice, plan) {
       value = Math.max(1, Math.round(raw));
       unitLabel = value === 1 ? u.singular : u.plural;
       approx = value >= 5
-        ? `≈ ${fmt.format(Math.round(value / 5))} Wochen bei 5 PT/Woche (theoretisch)`
+        ? `≈ ${plural(Math.round(value / 5), 'Woche', 'Wochen')} bei 5 PT/Woche (theoretisch)`
         : 'Das schafft man an einem Nachmittag. Niemals.';
     }
   }
@@ -324,7 +338,7 @@ function renderResult(res, text) {
   const [a, b] = res.dice;
   const chips = `<span class="dice-chips"><span class="die-chip" aria-label="Würfel ${a}">${DICE_GLYPHS[a]}</span><span class="die-chip" aria-label="Würfel ${b}">${DICE_GLYPHS[b]}</span></span>`;
   const rowsHtml = res.rows.map((r, i) =>
-    `<tr class="${r.total ? 'total' : ''}" style="animation-delay:${180 + i * 70}ms"><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.value)}</td></tr>`,
+    `<tr class="${r.total ? 'total' : ''}" style="animation-delay:${180 + i * 70}ms"><td>${escapeHtml(typo(r.label))}</td><td>${escapeHtml(typo(r.value))}</td></tr>`,
   ).join('');
   const countDelay = 260 + res.rows.length * 70;
   const html = `
@@ -332,12 +346,12 @@ function renderResult(res, text) {
       <div class="card-head">${chips}<span>Basiswurf <b>${a} + ${b} = ${res.sum}</b></span></div>
       <table class="factors" aria-label="Schätzfaktoren"><tbody>${rowsHtml}</tbody></table>
       <div class="result">
-        <div class="big"><span class="num" aria-live="off">0</span><span class="unit">${escapeHtml(res.unitLabel)}</span></div>
-        <div class="approx">${escapeHtml(res.approx)}</div>
-        <div class="confidence">${escapeHtml(res.confidence)}</div>
-        <div class="seal" style="--stamp-delay:${countDelay + 1000}ms">${escapeHtml(res.stamp)}</div>
+        <div class="big"><span class="num" aria-live="off">0</span><span class="unit">${escapeHtml(typo(res.unitLabel))}</span></div>
+        <div class="approx">${escapeHtml(typo(res.approx))}</div>
+        <div class="confidence">${escapeHtml(typo(res.confidence))}</div>
+        <div class="seal" style="--stamp-delay:${countDelay + 1000}ms">${escapeHtml(typo(res.stamp))}</div>
       </div>
-      <p class="verdict">${escapeHtml(res.verdict)}</p>
+      <p class="verdict">${escapeHtml(typo(res.verdict))}</p>
       <div class="card-actions">
         <button class="btn" type="button" data-copy>Als Angebot kopieren</button>
         <button class="btn primary" type="button" data-reroll>Nochmal würfeln</button>
@@ -430,7 +444,7 @@ async function estimate(text, opts = {}) {
   flashStage(res.mood);
   if (C.SLAMS[res.mood]) slamStage(C.SLAMS[res.mood], res.mood);
   audio.shimmer(res.mood === 'snake' ? 'sad' : res.mood === 'jackpot' ? 'jackpot' : 'normal');
-  try { navigator.vibrate?.(res.mood === 'jackpot' ? [40, 60, 40, 60, 140] : [25, 40, 25]); } catch { /* egal */ }
+  if (userTouched) { try { navigator.vibrate?.(res.mood === 'jackpot' ? [40, 60, 40, 60, 140] : [25, 40, 25]); } catch { /* egal */ } }
   renderResult(res, text);
   setTimeout(() => celebrate(res), 200);
   setTimeout(() => { if (!els.genie.classList.contains('thinking') && !els.genie.classList.contains('rolling')) setGenie('idle'); }, 2600);
@@ -522,7 +536,7 @@ els.form.addEventListener('animationend', () => els.form.classList.remove('nudge
 els.input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
-    els.form.requestSubmit();
+    submitForm();
   }
 });
 els.form.addEventListener('submit', (e) => {
@@ -571,11 +585,11 @@ els.reset.addEventListener('click', () => {
 let statusIdx = 0;
 setInterval(() => {
   statusIdx = (statusIdx + 1) % C.STATUS_LINES.length;
-  els.status.textContent = C.STATUS_LINES[statusIdx];
+  els.status.textContent = typo(C.STATUS_LINES[statusIdx]);
 }, 9000);
 
 function syncPlaceholder() {
-  els.input.placeholder = window.innerWidth >= 1100 ? C.PLACEHOLDER_WIDE : C.PLACEHOLDER_NARROW;
+  els.input.placeholder = typo(window.innerWidth >= 1100 ? C.PLACEHOLDER_WIDE : C.PLACEHOLDER_NARROW);
 }
 window.addEventListener('resize', syncPlaceholder);
 
@@ -583,6 +597,7 @@ window.addEventListener('resize', syncPlaceholder);
 initStage();
 syncSoundButton();
 syncPlaceholder();
+els.status.textContent = typo(C.STATUS_LINES[0]);
 setGenie('idle');
 addGenieText(C.INTRO);
 showEmptyChips();
@@ -592,6 +607,6 @@ showEmptyChips();
   if (q) {
     els.input.value = q;
     autoGrow();
-    setTimeout(() => els.form.requestSubmit(), 600);
+    setTimeout(() => submitForm(), 600);
   }
 }
