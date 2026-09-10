@@ -1,0 +1,19 @@
+{
+  "name": "jini-schaetz-orakel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jini – das Schätz-Orakel. Eine Chat-App, in der ein Dschinn deine Projektaufwände per 3D-Würfel schätzt. Nur zum Spaß.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "cannon-es": "0.20.0",
+    "canvas-confetti": "1.9.3",
+    "three": "0.169.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  }
+}

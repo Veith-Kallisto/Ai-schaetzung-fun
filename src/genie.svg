@@ -1,0 +1,109 @@
+<svg class="genie" viewBox="0 0 260 320" role="img" aria-label="Jini, der Dschinn, schwebt über seiner Lampe" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b19bff"/>
+      <stop offset="1" stop-color="#6a48f0"/>
+    </linearGradient>
+    <linearGradient id="g-tail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6a48f0"/>
+      <stop offset="0.75" stop-color="#8b6cff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#c9b8ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="g-gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe08a"/>
+      <stop offset="0.5" stop-color="#f5b84b"/>
+      <stop offset="1" stop-color="#b8781a"/>
+    </linearGradient>
+    <linearGradient id="g-turban" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d2aa3"/>
+      <stop offset="1" stop-color="#241a6b"/>
+    </linearGradient>
+    <radialGradient id="g-aura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8b6cff" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#8b6cff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#8b6cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g-lampglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd98a" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#f5b84b" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="f-soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+
+  <!-- Aura hinter dem Dschinn -->
+  <circle class="aura" cx="160" cy="115" r="92" fill="url(#g-aura)"/>
+
+  <!-- Lampe -->
+  <g class="lamp">
+    <ellipse class="lamp-glow" cx="74" cy="288" rx="58" ry="16" fill="url(#g-lampglow)"/>
+    <path class="lamp-handle" d="M38 262 Q8 262 10 282 Q12 296 36 292" fill="none" stroke="url(#g-gold)" stroke-width="6" stroke-linecap="round"/>
+    <path class="lamp-body" d="M28 278 Q72 310 116 278 Q112 262 90 256 L54 256 Q34 262 28 278 Z" fill="url(#g-gold)"/>
+    <path class="lamp-spout" d="M108 268 Q132 262 140 240 Q143 235 137 236 Q126 254 106 262 Z" fill="url(#g-gold)"/>
+    <ellipse class="lamp-lid" cx="72" cy="256" rx="22" ry="6" fill="#ffd97a"/>
+    <circle class="lamp-knob" cx="72" cy="248" r="4.5" fill="url(#g-gold)"/>
+    <path class="lamp-shine" d="M44 270 Q60 262 82 262" fill="none" stroke="#fff3c4" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  </g>
+
+  <!-- Rauch aus der Lampe -->
+  <g class="smoke" fill="#c9b8ff">
+    <circle class="puff p1" cx="140" cy="230" r="6" opacity="0.55"/>
+    <circle class="puff p2" cx="150" cy="212" r="8" opacity="0.4"/>
+    <circle class="puff p3" cx="140" cy="196" r="10" opacity="0.28"/>
+  </g>
+
+  <!-- Dschinn -->
+  <g class="body">
+    <path class="tail" d="M126 166 C 116 196, 162 200, 152 222 C 148 232, 140 236, 137 240 C 150 232, 174 228, 178 206 C 182 190, 190 178, 194 166 Z" fill="url(#g-tail)"/>
+    <rect class="torso" x="118" y="106" width="84" height="68" rx="34" fill="url(#g-body)"/>
+    <rect class="neck" x="150" y="96" width="20" height="16" rx="6" fill="#5b3fe0"/>
+    <!-- verschränkte Arme -->
+    <path class="arm arm-l" d="M124 124 C 134 144, 168 152, 186 152" fill="none" stroke="#7a5cf5" stroke-width="20" stroke-linecap="round"/>
+    <circle class="hand" cx="186" cy="152" r="11" fill="#9d84ff"/>
+    <path class="arm arm-r" d="M196 124 C 186 144, 152 152, 134 152" fill="none" stroke="#8b6cff" stroke-width="20" stroke-linecap="round"/>
+    <circle class="hand" cx="134" cy="152" r="11" fill="#a58fff"/>
+    <path class="band" d="M160 141 l4 15" stroke="url(#g-gold)" stroke-width="5" stroke-linecap="round"/>
+    <path class="band" d="M129 136 l-4 15" stroke="url(#g-gold)" stroke-width="5" stroke-linecap="round"/>
+    <!-- Kopf -->
+    <circle class="ear" cx="126" cy="80" r="7" fill="#8b6cff"/>
+    <circle class="ear" cx="194" cy="80" r="7" fill="#8b6cff"/>
+    <circle class="earring" cx="194" cy="91" r="5" fill="none" stroke="#f5b84b" stroke-width="2.5"/>
+    <circle class="head" cx="160" cy="78" r="34" fill="url(#g-body)"/>
+    <path class="turban" d="M122 72 C 122 30, 198 30, 198 72 Q160 60 122 72 Z" fill="url(#g-turban)"/>
+    <circle class="turban-top" cx="160" cy="36" r="9" fill="#3d2aa3"/>
+    <path class="turban-band" d="M124 68 Q160 54 196 68 Q160 76 124 68 Z" fill="url(#g-gold)"/>
+    <circle class="gem" cx="160" cy="63" r="6" fill="#ff4d8d"/>
+    <circle class="gem-shine" cx="158" cy="61" r="1.8" fill="#fff"/>
+    <!-- Gesicht -->
+    <g class="brows" fill="none" stroke="#2a1e6b" stroke-width="3.5" stroke-linecap="round">
+      <path class="brow brow-l" d="M137 67 q9 -6 18 -1"/>
+      <path class="brow brow-r" d="M165 66 q9 -5 18 1"/>
+    </g>
+    <g class="eyes">
+      <ellipse cx="146" cy="80" rx="8" ry="9" fill="#fffdf5"/>
+      <ellipse cx="174" cy="80" rx="8" ry="9" fill="#fffdf5"/>
+      <g class="pupils">
+        <circle cx="147" cy="81" r="4.2" fill="#1b1740"/>
+        <circle cx="175" cy="81" r="4.2" fill="#1b1740"/>
+        <circle cx="145.5" cy="79" r="1.5" fill="#fff"/>
+        <circle cx="173.5" cy="79" r="1.5" fill="#fff"/>
+      </g>
+    </g>
+    <path class="nose" d="M159 85 q4 5 0 8" fill="none" stroke="#5b3fe0" stroke-width="2.5" stroke-linecap="round"/>
+    <path class="mouth mouth-smile" d="M146 96 q14 10 28 0" fill="none" stroke="#2a1e6b" stroke-width="3" stroke-linecap="round"/>
+    <path class="mouth mouth-grin" d="M143 94 Q160 118 177 94 Z" fill="#2a1e6b"/>
+    <rect class="mouth mouth-teeth" x="150" y="95" width="20" height="5" rx="2" fill="#fffdf5"/>
+    <path class="mouth mouth-sad" d="M147 101 q13 -9 26 0" fill="none" stroke="#2a1e6b" stroke-width="3" stroke-linecap="round"/>
+    <path class="mouth mouth-o" d="M154 97 a6 7 0 1 0 12 0 a6 7 0 1 0 -12 0" fill="#2a1e6b"/>
+    <path class="goatee" d="M153 108 l7 13 l7 -13 z" fill="#2a1e6b"/>
+  </g>
+
+  <!-- Funken -->
+  <g class="sparks" fill="#ffe08a">
+    <circle class="spark s1" cx="112" cy="60" r="2.2"/>
+    <circle class="spark s2" cx="214" cy="48" r="1.8"/>
+    <circle class="spark s3" cx="222" cy="128" r="2.4"/>
+    <circle class="spark s4" cx="100" cy="150" r="1.6"/>
+  </g>
+</svg>
