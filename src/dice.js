@@ -50,21 +50,32 @@ function makeTableTexture() {
     d[i] += n; d[i + 1] += n; d[i + 2] += n;
   }
   g.putImageData(img, 0, 0);
-  // Schicksalsring in Lampengold
-  g.strokeStyle = 'rgba(245,184,75,0.28)';
-  g.lineWidth = 3;
-  g.beginPath(); g.arc(512, 512, 300, 0, Math.PI * 2); g.stroke();
-  g.lineWidth = 1.2;
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+// Schicksalsring in Lampengold – eigene Textur, damit er sich der Arena anpasst.
+function makeRingTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const g = c.getContext('2d');
+  const R = 236;
+  g.strokeStyle = 'rgba(245,184,75,0.32)';
+  g.lineWidth = 2.5;
+  g.beginPath(); g.arc(256, 256, R, 0, Math.PI * 2); g.stroke();
+  g.lineWidth = 1;
   g.strokeStyle = 'rgba(245,184,75,0.18)';
-  g.beginPath(); g.arc(512, 512, 272, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.arc(256, 256, R - 20, 0, Math.PI * 2); g.stroke();
   for (let i = 0; i < 36; i++) {
     const a = (i / 36) * Math.PI * 2;
-    const r1 = i % 3 === 0 ? 315 : 306;
-    g.strokeStyle = 'rgba(245,184,75,0.35)';
-    g.lineWidth = i % 3 === 0 ? 2.5 : 1.5;
+    const r1 = i % 3 === 0 ? R + 13 : R + 7;
+    g.strokeStyle = 'rgba(245,184,75,0.38)';
+    g.lineWidth = i % 3 === 0 ? 2.2 : 1.3;
     g.beginPath();
-    g.moveTo(512 + Math.cos(a) * 300, 512 + Math.sin(a) * 300);
-    g.lineTo(512 + Math.cos(a) * r1, 512 + Math.sin(a) * r1);
+    g.moveTo(256 + Math.cos(a) * R, 256 + Math.sin(a) * R);
+    g.lineTo(256 + Math.cos(a) * r1, 256 + Math.sin(a) * r1);
     g.stroke();
   }
   const t = new THREE.CanvasTexture(c);
@@ -135,6 +146,14 @@ export class DiceStage {
     table.rotation.x = -Math.PI / 2;
     table.receiveShadow = true;
     scene.add(table);
+    const ring = new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      new THREE.MeshBasicMaterial({ map: makeRingTexture(), transparent: true, depthWrite: false }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.004;
+    scene.add(ring);
+    this.ring = ring;
 
     // Goldstaub in der Luft
     this.dust = makeDust();
@@ -219,6 +238,9 @@ export class DiceStage {
 
   setArena(w, d) {
     this.arena = { w, d };
+    // Ring umschließt die Arena (Texturradius 236/256 der Fläche)
+    const k = 256 / 236;
+    this.ring.scale.set((w + 0.25) * k, (d + 0.25) * k, 1);
     for (const b of this.walls) this.world.removeBody(b);
     this.walls = [];
     const mk = (x, z, euler) => {
@@ -255,6 +277,9 @@ export class DiceStage {
     const { w, d } = this.arena;
     const corners = [];
     for (const x of [-w, w]) for (const z of [-d, d]) for (const y of [0, 1.1]) corners.push(new THREE.Vector3(x, y, z));
+    const rx = (w + 0.25) * (256 / 236) * 1.03;
+    const rz = (d + 0.25) * (256 / 236) * 1.03;
+    corners.push(new THREE.Vector3(rx, 0, 0), new THREE.Vector3(-rx, 0, 0), new THREE.Vector3(0, 0, rz), new THREE.Vector3(0, 0, -rz));
     const tmp = new THREE.Vector3();
     let lo = 4, hi = 40;
     for (let i = 0; i < 18; i++) {
@@ -266,7 +291,7 @@ export class DiceStage {
       const topLimit = 1 - 2 * this.reserveTop - 0.04;
       for (const c of corners) {
         tmp.copy(c).project(this.camera);
-        if (Math.abs(tmp.x) > 0.93 || tmp.y < -0.9 || tmp.y > topLimit) { fits = false; break; }
+        if (Math.abs(tmp.x) > 0.95 || tmp.y < -0.84 || tmp.y > topLimit) { fits = false; break; }
       }
       if (fits) hi = mid; else lo = mid;
     }

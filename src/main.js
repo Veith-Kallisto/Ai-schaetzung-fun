@@ -27,6 +27,7 @@ const DICE_GLYPHS = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
 let stage = null;
 let busy = false;
+let afterthoughtToken = 0;
 let last = null; // { text, unit, mood }
 
 // ---------- Hilfen ----------
@@ -187,6 +188,7 @@ function showThinking(lines) {
 }
 
 function renderChips(items, onPick) {
+  if (busy) return;
   els.chips.innerHTML = '';
   items.forEach((item, i) => {
     const b = el('button', 'chip', escapeHtml(item.label || item));
@@ -223,7 +225,7 @@ function analyze(text, opts = {}) {
   }
   factors.push(...pickN(C.ALWAYS_FACTORS, factors.length >= 4 ? 1 : 2));
   if (opts.mood && C.MOOD_FACTORS[opts.mood]) factors.push(C.MOOD_FACTORS[opts.mood]);
-  return { factors, unit: opts.unit || detectUnit(text) };
+  return { factors, unit: opts.unit || detectUnit(text), mood: opts.mood };
 }
 
 function compute(dice, plan) {
@@ -242,6 +244,7 @@ function compute(dice, plan) {
     raw *= f.mult;
     rows.push({ label: f.label, value: `× ${fmtMult(f.mult)}` });
   }
+  raw = Math.round(raw * 1e6) / 1e6;
   if (plan.unit !== 'pt') rows.push({ label: 'Zwischensumme', value: fmtDec(raw), total: true });
 
   let value; let unitLabel; let approx;
@@ -295,7 +298,7 @@ function compute(dice, plan) {
     else bucket = mood === 'doubles' ? 'doubles' : 'normal';
   }
   return {
-    dice, sum, rows, value, unit: plan.unit, unitLabel, approx,
+    dice, sum, rows, value, unit: plan.unit, unitLabel, approx, moodOpt: plan.mood,
     verdict: pick(C.VERDICTS[bucket]),
     mood: bucket,
     stamp: pick(C.STAMPS[bucket] || C.STAMPS.normal),
@@ -308,7 +311,7 @@ function countUp(node, target, delay) {
     const dur = reduced ? 0 : 950;
     const t0 = performance.now();
     const tick = (now) => {
-      const k = dur ? Math.min(1, (now - t0) / dur) : 1;
+      const k = dur ? Math.min(1, Math.max(0, (now - t0) / dur)) : 1;
       const e = 1 - Math.pow(1 - k, 3);
       node.textContent = fmt.format(Math.round(target * e));
       if (k < 1) requestAnimationFrame(tick);
@@ -344,7 +347,8 @@ function renderResult(res, text) {
   const { bubble } = addMessage('genie', html, { wide: true });
   countUp(bubble.querySelector('.num'), res.value, countDelay);
   bubble.querySelector('[data-copy]').addEventListener('click', (e) => copyResult(res, text, e.currentTarget));
-  bubble.querySelector('[data-reroll]').addEventListener('click', () => runAction('reroll'));
+  const ctx = { text, unit: res.unit, mood: res.moodOpt, value: res.value };
+  bubble.querySelector('[data-reroll]').addEventListener('click', () => runAction('reroll', ctx));
   setTimeout(scrollDown, countDelay + 200);
   return bubble;
 }
@@ -385,6 +389,7 @@ function setBusy(b) {
   busy = b;
   els.send.disabled = b;
   els.input.disabled = b;
+  els.reset.disabled = b;
   if (!b) els.input.focus({ preventScroll: true });
 }
 
@@ -425,8 +430,8 @@ async function estimate(text, opts = {}) {
   renderResult(res, text);
   setTimeout(() => celebrate(res), 200);
   setTimeout(() => { if (!els.genie.classList.contains('thinking') && !els.genie.classList.contains('rolling')) setGenie('idle'); }, 2600);
-  showFollowupChips();
   setBusy(false);
+  showFollowupChips();
   if (Math.random() < 0.4) {
     const token = ++afterthoughtToken;
     setTimeout(() => {
@@ -436,9 +441,8 @@ async function estimate(text, opts = {}) {
     }, 2800);
   }
 }
-let afterthoughtToken = 0;
 
-async function reply(text, delay = 900) {
+async function reply(text, delay = 900, followup = null) {
   setBusy(true);
   setGenie('thinking');
   const thinking = showThinking(pickN(C.THINKING_LINES, 2));
@@ -447,11 +451,19 @@ async function reply(text, delay = 900) {
   setGenie('idle');
   audio.pop();
   addGenieText([text]);
+  if (followup) {
+    await wait(reduced ? 200 : 1000);
+    audio.pop();
+    addGenieText([followup]);
+  }
   setBusy(false);
 }
 
-function runAction(action) {
-  if (busy || !last) return;
+function runAction(action, ctx) {
+  if (busy) return;
+  if (ctx) last = { ...ctx };
+  if (!last) return;
+  stickToBottom = true;
   const map = {
     reroll: { msg: '🎲 Nochmal würfeln, bitte.', opts: { unit: last.unit, mood: last.mood, compareTo: last.value, compareUnit: last.unit } },
     optimistic: { msg: 'Und optimistisch? Der Vertrieb fragt.', opts: { unit: last.unit, mood: 'optimistic' } },
@@ -473,8 +485,7 @@ async function handleSubmit(text) {
   for (const egg of C.EASTER_EGGS) {
     if (egg.re.test(text)) {
       els.chips.innerHTML = '';
-      await reply(egg.reply);
-      if (egg.followup) { await wait(reduced ? 200 : 1000); audio.pop(); addGenieText([egg.followup]); }
+      await reply(egg.reply, 900, egg.followup || null);
       if (!last) showEmptyChips(); else showFollowupChips();
       return;
     }
@@ -482,10 +493,19 @@ async function handleSubmit(text) {
   await estimate(text);
 }
 
+// Nur echtes Nutzer-Scrollen (Rad, Finger, Scrollbalken) löst das Ankleben am Ende.
+let userScrollIntent = -1e9;
+const markScrollIntent = () => { userScrollIntent = performance.now(); };
+els.messages.addEventListener('wheel', markScrollIntent, { passive: true });
+els.messages.addEventListener('touchmove', markScrollIntent, { passive: true });
+els.messages.addEventListener('pointerdown', (e) => {
+  if (e.target === els.messages && e.offsetX >= els.messages.clientWidth) markScrollIntent();
+}, { passive: true });
 els.messages.addEventListener('scroll', () => {
   const m = els.messages;
-  stickToBottom = m.scrollHeight - m.scrollTop - m.clientHeight < 120;
-  if (stickToBottom) hideScrollPill();
+  const nearBottom = m.scrollHeight - m.scrollTop - m.clientHeight < 120;
+  if (nearBottom) { stickToBottom = true; hideScrollPill(); return; }
+  if (performance.now() - userScrollIntent < 800) stickToBottom = false;
 }, { passive: true });
 
 // ---------- Eingabe ----------
@@ -493,7 +513,8 @@ function autoGrow() {
   els.input.style.height = 'auto';
   els.input.style.height = `${Math.min(140, els.input.scrollHeight)}px`;
 }
-els.input.addEventListener('input', autoGrow);
+els.input.addEventListener('input', () => { autoGrow(); els.form.classList.remove('nudge'); });
+els.form.addEventListener('animationend', () => els.form.classList.remove('nudge'));
 els.input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
@@ -508,11 +529,13 @@ els.form.addEventListener('submit', (e) => {
     els.form.classList.remove('nudge');
     void els.form.offsetWidth;
     els.form.classList.add('nudge');
+    setTimeout(() => els.form.classList.remove('nudge'), 600);
     els.input.focus();
     return;
   }
   els.input.value = '';
   autoGrow();
+  stickToBottom = true;
   handleSubmit(text);
 });
 
@@ -528,8 +551,11 @@ els.sound.addEventListener('click', () => {
 });
 els.reset.addEventListener('click', () => {
   if (busy) return;
+  afterthoughtToken++;
   els.messages.innerHTML = '';
   last = null;
+  stickToBottom = true;
+  hideScrollPill();
   setGenie('idle');
   if (stage) stage.restDice([1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]);
   addGenieText(C.INTRO);

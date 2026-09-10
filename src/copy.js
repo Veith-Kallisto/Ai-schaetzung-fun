@@ -234,7 +234,7 @@ export const EASTER_EGGS = [
   { re: /ist das (schon )?fertig|seid ihr (schon )?fertig|bist du (schon )?fertig|^\s*status\s*\??\s*$/i, reply: 'Fast. Nur noch die letzten 10 %. Seit drei Wochen.', noRoll: true },
   { re: /bist du (eine |ein )?(ki|ai|echt|bot)|bist du chatgpt|echte ki/i, reply: 'Ich bin ein Dschinn mit Würfeln. Das ist ungefähr so belastbar wie eine KI, nur ehrlicher – und ich halluziniere nur Zahlen, keine Quellen.', noRoll: true },
   { re: /wie geht.?s|wie geht es dir|alles gut\??$/i, reply: 'Rot im Statusbericht, grün in der PowerPoint. Also: alles wie immer. Was soll ich schätzen?', noRoll: true },
-  { re: /\blampe\b|\breib/i, reply: 'Hey, nicht reiben. Wir sind hier in einem professionellen Kontext. Drei Wünsche gibt’s nicht – nur drei Schätzungen, und die weichen alle voneinander ab.', noRoll: true },
+  { re: /\blampe\b|\breib(e|en|st|t)?\b|\bgerieben\b/i, reply: 'Hey, nicht reiben. Wir sind hier in einem professionellen Kontext. Drei Wünsche gibt’s nicht – nur drei Schätzungen, und die weichen alle voneinander ab.', noRoll: true },
   { re: /wie lange hat es gedauert,? dich zu bauen|schätz(e)? dich selbst|wie lange hast du gebraucht/i, reply: 'Ein Tag. Geschätzt waren zwei Stunden. Das ist der Faktor 4, den ihr sonst nirgends kalkuliert.', noRoll: true },
   { re: /wer bist du|was bist du|was kannst du|^\s*(hilfe|help)\s*[?!.]*$/i, reply: 'Ich bin Jini, Schätz-Orakel mit Lampe. Du beschreibst ein Vorhaben, ich lese Faktoren aus dem Text, würfle in 3D und runde großzügig. Probier mal: „Nur schnell die Farbe im Logo ändern“.', noRoll: true },
   { re: /^\s*(tschüss|ciao|bye|bis dann|auf wiedersehen)\b/i, reply: 'Bis dann! Die Würfel bleiben hier. Der Aufwand auch.', noRoll: true },
