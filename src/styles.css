@@ -242,6 +242,31 @@ button { font: inherit; }
   opacity: 0;
 }
 .stage.flash .stage-flash { animation: flash 0.7s ease-out both; }
+.stage.flash-snake .stage-flash { background: radial-gradient(circle at 50% 60%, rgba(255, 77, 141, 0.85), rgba(255, 77, 141, 0.2) 40%, transparent 70%); }
+.stage.flash-jackpot .stage-flash { background: radial-gradient(circle at 50% 60%, rgba(255, 240, 200, 1), rgba(245, 184, 75, 0.45) 40%, transparent 72%); }
+.stage-slam {
+  position: absolute; left: 50%; top: 50%;
+  translate: -50% -50%;
+  z-index: 2;
+  pointer-events: none;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: clamp(26px, 6vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--gold);
+  text-shadow: 0 0 30px rgba(245, 184, 75, 0.7), 0 3px 0 rgba(0, 0, 0, 0.4);
+  animation: slam 2.4s var(--ease-pop) both;
+}
+.stage-slam.snake { color: var(--magenta); text-shadow: 0 0 30px rgba(255, 77, 141, 0.7), 0 3px 0 rgba(0, 0, 0, 0.4); }
+@keyframes slam {
+  0% { opacity: 0; transform: scale(3) rotate(-8deg); }
+  14% { opacity: 1; transform: scale(1) rotate(-4deg); }
+  80% { opacity: 1; transform: scale(1.04) rotate(-4deg); }
+  100% { opacity: 0; transform: scale(1.1) rotate(-4deg); }
+}
 @keyframes flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
 .stage.shake .stage-canvas { animation: shake 0.18s linear; }
 @keyframes shake {
@@ -344,6 +369,7 @@ button { font: inherit; }
 }
 .unit { font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; font-size: 13px; color: var(--text); }
 .approx { font-size: 13px; color: var(--muted); }
+.confidence { font-family: var(--font-mono); font-size: 11.5px; color: var(--teal); letter-spacing: 0.02em; margin-top: 4px; }
 .verdict { margin: 0; font-family: var(--font-display); font-style: italic; font-size: 16.5px; line-height: 1.4; text-wrap: balance; }
 .seal {
   position: absolute; right: 0; top: 8px;
@@ -380,6 +406,20 @@ button { font: inherit; }
 .btn:active { transform: scale(0.97); }
 .btn.primary { background: linear-gradient(135deg, #ffd06a, #e39a2a); color: #1b1740; border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.06); }
+
+/* Zurück-nach-unten-Pille */
+.scroll-pill {
+  align-self: center;
+  margin: 0 0 6px;
+  font-size: 12.5px; font-weight: 700;
+  color: #1b1740;
+  background: linear-gradient(135deg, #ffd06a, #e39a2a);
+  border: 0; border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(245, 184, 75, 0.35);
+  animation: msg-in 0.25s var(--ease-out) both;
+}
 
 /* Vorschläge */
 .chips {
@@ -481,7 +521,7 @@ button { font: inherit; }
 
 /* Weniger Bewegung, wenn gewünscht */
 @media (prefers-reduced-motion: reduce) {
-  .genie, .genie *, .msg, .chip, .factors tr, .die-chip, .dot, .stage-canvas, .stage-flash, .thinking-line, .composer.nudge {
+  .genie, .genie *, .msg, .chip, .factors tr, .die-chip, .dot, .stage-canvas, .stage-flash, .stage-slam, .thinking-line, .composer.nudge, .scroll-pill {
     animation: none !important;
     transition: none !important;
   }

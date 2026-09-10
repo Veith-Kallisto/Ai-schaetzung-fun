@@ -47,10 +47,27 @@ function el(tag, cls, html) {
   if (html != null) e.innerHTML = html;
   return e;
 }
-function scrollDown() {
+let stickToBottom = true;
+function scrollDown(force = false) {
   requestAnimationFrame(() => {
-    els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: reduced ? 'auto' : 'smooth' });
+    if (stickToBottom || force) {
+      els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: reduced ? 'auto' : 'smooth' });
+      hideScrollPill();
+    } else {
+      showScrollPill();
+    }
   });
+}
+function showScrollPill() {
+  if (document.querySelector('.scroll-pill')) return;
+  const pill = el('button', 'scroll-pill', '↓ Neuer Wurf');
+  pill.type = 'button';
+  pill.addEventListener('click', () => { stickToBottom = true; scrollDown(true); });
+  els.chips.parentElement.insertBefore(pill, els.chips);
+}
+function hideScrollPill() {
+  const pill = document.querySelector('.scroll-pill');
+  if (pill) pill.remove();
 }
 function fmtMult(m) {
   if (m === 3.14) return 'π';
@@ -88,11 +105,20 @@ function setGenie(state) {
   const cap = state === 'reveal' || state === 'sad' ? C.STAGE_CAPTIONS.result : C.STAGE_CAPTIONS[state] || C.STAGE_CAPTIONS.idle;
   if (stage || state !== 'idle') els.caption.textContent = cap;
 }
-function flashStage() {
+function flashStage(mood) {
   if (reduced) return;
-  els.stage.classList.remove('flash');
+  els.stage.classList.remove('flash', 'flash-snake', 'flash-jackpot');
   void els.stage.offsetWidth;
   els.stage.classList.add('flash');
+  if (mood === 'snake') els.stage.classList.add('flash-snake');
+  if (mood === 'jackpot') els.stage.classList.add('flash-jackpot');
+}
+function slamStage(text, mood) {
+  const old = els.stage.querySelector('.stage-slam');
+  if (old) old.remove();
+  const slam = el('div', `stage-slam ${mood}`, escapeHtml(text));
+  els.stage.appendChild(slam);
+  setTimeout(() => slam.remove(), 2400);
 }
 let shakeTimer = 0;
 function shakeStage() {
@@ -190,7 +216,11 @@ function analyze(text, opts = {}) {
   let factors = [];
   for (const f of C.KEYWORD_FACTORS) if (f.re.test(text)) factors.push({ label: f.label, mult: f.mult });
   factors.push(...C.shapeFactors(text));
-  if (factors.length > 6) factors = factors.slice(0, 6);
+  if (factors.length > C.MAX_KEYWORD_FACTORS) {
+    const extra = factors.length - C.MAX_KEYWORD_FACTORS;
+    factors = factors.slice(0, C.MAX_KEYWORD_FACTORS);
+    factors.push(C.OVERFLOW_FACTOR(extra));
+  }
   factors.push(...pickN(C.ALWAYS_FACTORS, factors.length >= 4 ? 1 : 2));
   if (opts.mood && C.MOOD_FACTORS[opts.mood]) factors.push(C.MOOD_FACTORS[opts.mood]);
   return { factors, unit: opts.unit || detectUnit(text) };
@@ -268,6 +298,7 @@ function compute(dice, plan) {
     dice, sum, rows, value, unit: plan.unit, unitLabel, approx,
     verdict: pick(C.VERDICTS[bucket]),
     mood: bucket,
+    stamp: pick(C.STAMPS[bucket] || C.STAMPS.normal),
     confidence: pick(C.CONFIDENCE),
   };
 }
@@ -300,11 +331,12 @@ function renderResult(res, text) {
       <div class="result">
         <div class="big"><span class="num" aria-live="off">0</span><span class="unit">${escapeHtml(res.unitLabel)}</span></div>
         <div class="approx">${escapeHtml(res.approx)}</div>
-        <div class="seal" style="--stamp-delay:${countDelay + 1000}ms">${escapeHtml(res.confidence)}</div>
+        <div class="confidence">${escapeHtml(res.confidence)}</div>
+        <div class="seal" style="--stamp-delay:${countDelay + 1000}ms">${escapeHtml(res.stamp)}</div>
       </div>
       <p class="verdict">${escapeHtml(res.verdict)}</p>
       <div class="card-actions">
-        <button class="btn" type="button" data-copy>Kopieren</button>
+        <button class="btn" type="button" data-copy>Als Angebot kopieren</button>
         <button class="btn primary" type="button" data-reroll>Nochmal würfeln</button>
       </div>
       <span class="sr-only">Ergebnis: ${fmt.format(res.value)} ${escapeHtml(res.unitLabel)}</span>
@@ -319,21 +351,26 @@ function renderResult(res, text) {
 
 async function copyResult(res, text, btn) {
   const factors = res.rows.filter((r) => r.value.startsWith('×')).map((r) => `${r.label} ${r.value}`).join(', ');
-  const line = `🧞 Jini schätzt „${text}“: ${fmt.format(res.value)} ${res.unitLabel} (Würfel ${res.dice[0]} + ${res.dice[1]}${factors ? '; ' + factors : ''}). ${res.confidence}. Nur zum Spaß.`;
+  const line = `🧞 Schätzung laut Jini: ${fmt.format(res.value)} ${res.unitLabel} für „${text}“ · Würfel ${res.dice[0]} + ${res.dice[1]}${factors ? ' · Faktoren: ' + factors : ''} · ${res.confidence}. Belastbar wie gewürfelt. #JiniSchätzt`;
   try {
     await navigator.clipboard.writeText(line);
-    btn.textContent = 'Kopiert ✓';
-    toast('Schätzung in die Zwischenablage kopiert.');
+    btn.textContent = '✓ Kopiert';
+    toast('Kopiert. Viel Erfolg im Lenkungskreis.');
   } catch {
     toast('Kopieren geht hier nicht – Screenshot tut’s auch.');
   }
-  setTimeout(() => { btn.textContent = 'Kopieren'; }, 1800);
+  setTimeout(() => { btn.textContent = 'Als Angebot kopieren'; }, 1800);
 }
 
 function celebrate(res) {
   if (reduced) return;
   const origin = stageOrigin();
   const gold = ['#f5b84b', '#ffe08a', '#fffdf5'];
+  const emoji = res.value === 42 ? '🐬' : res.value === 420 ? '🌿' : null;
+  if (emoji && confetti.shapeFromText) {
+    const shape = confetti.shapeFromText({ text: emoji, scalar: 3 });
+    confetti({ particleCount: 40, spread: 90, startVelocity: 30, origin, shapes: [shape], scalar: 3, disableForReducedMotion: true });
+  }
   if (res.mood === 'jackpot') {
     confetti({ particleCount: 160, spread: 85, startVelocity: 38, origin, colors: ['#f5b84b', '#8b6cff', '#2dd4bf', '#ff4d8d', '#fffdf5'], disableForReducedMotion: true });
     setTimeout(() => confetti({ particleCount: 90, spread: 120, startVelocity: 28, origin: { x: origin.x, y: origin.y - 0.1 }, colors: gold, disableForReducedMotion: true }), 350);
@@ -363,7 +400,7 @@ async function estimate(text, opts = {}) {
   await wait(reduced ? 700 : 2400);
 
   setGenie('rolling');
-  thinking.setLine('Die Würfel fallen …');
+  thinking.setLine(pick(C.FINALE_LINES));
   audio.whoosh();
   let dice;
   if (stage) {
@@ -373,19 +410,33 @@ async function estimate(text, opts = {}) {
     dice = [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
   }
   const res = compute(dice, plan);
+  if (opts.compareTo != null && opts.compareUnit === plan.unit) {
+    const dir = res.value > opts.compareTo ? 'up' : res.value < opts.compareTo ? 'down' : 'same';
+    res.verdict = pick(C.REROLL_VERDICTS[dir]);
+  }
+  last.value = res.value;
   thinking.remove();
 
   setGenie(res.mood === 'snake' ? 'sad' : 'reveal');
-  flashStage();
+  flashStage(res.mood);
+  if (C.SLAMS[res.mood]) slamStage(C.SLAMS[res.mood], res.mood);
   audio.shimmer(res.mood === 'snake' ? 'sad' : res.mood === 'jackpot' ? 'jackpot' : 'normal');
   try { navigator.vibrate?.(res.mood === 'jackpot' ? [40, 60, 40, 60, 140] : [25, 40, 25]); } catch { /* egal */ }
   renderResult(res, text);
   setTimeout(() => celebrate(res), 200);
-  setTimeout(() => { if (!busy) return; }, 0);
   setTimeout(() => { if (!els.genie.classList.contains('thinking') && !els.genie.classList.contains('rolling')) setGenie('idle'); }, 2600);
   showFollowupChips();
   setBusy(false);
+  if (Math.random() < 0.4) {
+    const token = ++afterthoughtToken;
+    setTimeout(() => {
+      if (busy || token !== afterthoughtToken) return;
+      audio.pop();
+      addGenieText([pick(C.AFTERTHOUGHTS)]);
+    }, 2800);
+  }
 }
+let afterthoughtToken = 0;
 
 async function reply(text, delay = 900) {
   setBusy(true);
@@ -402,11 +453,12 @@ async function reply(text, delay = 900) {
 function runAction(action) {
   if (busy || !last) return;
   const map = {
-    reroll: { msg: '🎲 Nochmal würfeln, bitte.', opts: { unit: last.unit, mood: last.mood } },
+    reroll: { msg: '🎲 Nochmal würfeln, bitte.', opts: { unit: last.unit, mood: last.mood, compareTo: last.value, compareUnit: last.unit } },
     optimistic: { msg: 'Und optimistisch? Der Vertrieb fragt.', opts: { unit: last.unit, mood: 'optimistic' } },
     pessimistic: { msg: 'Und wenn der Betrieb schätzt?', opts: { unit: last.unit, mood: 'pessimistic' } },
     'unit:eur': { msg: 'Und in Euro?', opts: { unit: 'eur', mood: last.mood } },
     'unit:sp': { msg: 'Und in Story Points?', opts: { unit: 'sp', mood: last.mood } },
+    'unit:weeks': { msg: 'Und in Wochen?', opts: { unit: 'weeks', mood: last.mood } },
   };
   const a = map[action];
   if (!a) return;
@@ -422,12 +474,19 @@ async function handleSubmit(text) {
     if (egg.re.test(text)) {
       els.chips.innerHTML = '';
       await reply(egg.reply);
+      if (egg.followup) { await wait(reduced ? 200 : 1000); audio.pop(); addGenieText([egg.followup]); }
       if (!last) showEmptyChips(); else showFollowupChips();
       return;
     }
   }
   await estimate(text);
 }
+
+els.messages.addEventListener('scroll', () => {
+  const m = els.messages;
+  stickToBottom = m.scrollHeight - m.scrollTop - m.clientHeight < 120;
+  if (stickToBottom) hideScrollPill();
+}, { passive: true });
 
 // ---------- Eingabe ----------
 function autoGrow() {
@@ -479,22 +538,30 @@ els.reset.addEventListener('click', () => {
 });
 
 // Statuszeile mit Lebenszeichen
-const STATUS_LINES = [
-  'Schätz-Orakel · online · Konfidenz 100 %',
-  'würfelt seit 1001 Nächten',
-  'zertifiziert (von sich selbst)',
-  'Tagessatz: drei Wünsche',
-  'antwortet schneller als der Fachbereich',
-];
 let statusIdx = 0;
 setInterval(() => {
-  statusIdx = (statusIdx + 1) % STATUS_LINES.length;
-  els.status.textContent = STATUS_LINES[statusIdx];
+  statusIdx = (statusIdx + 1) % C.STATUS_LINES.length;
+  els.status.textContent = C.STATUS_LINES[statusIdx];
 }, 9000);
+
+function syncPlaceholder() {
+  els.input.placeholder = window.innerWidth >= 900 ? C.PLACEHOLDER_WIDE : C.PLACEHOLDER_NARROW;
+}
+window.addEventListener('resize', syncPlaceholder);
 
 // ---------- Start ----------
 initStage();
 syncSoundButton();
+syncPlaceholder();
 setGenie('idle');
 addGenieText(C.INTRO);
 showEmptyChips();
+{
+  let q = '';
+  try { q = (new URLSearchParams(location.search).get('q') || '').trim().slice(0, 280); } catch { /* egal */ }
+  if (q) {
+    els.input.value = q;
+    autoGrow();
+    setTimeout(() => els.form.requestSubmit(), 600);
+  }
+}

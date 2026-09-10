@@ -170,6 +170,8 @@ export class DiceStage {
     this.resize();
     this.restDice([1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)]);
 
+    this.baseFov = this.camera.fov;
+    this.slowmo = { done: true, until: 0 };
     this._clock = new THREE.Clock();
     this._frame = this._frame.bind(this);
     this.renderer.setAnimationLoop(this._frame);
@@ -311,6 +313,8 @@ export class DiceStage {
     });
     this.rollStart = performance.now();
     this.settledFrames = 0;
+    this.slowmo = { done: false, until: 0 };
+    this.baseFov = this.camera.fov;
     this.rollPromise = new Promise((resolve) => { this._resolveRoll = resolve; });
     return this.rollPromise;
   }
@@ -344,6 +348,8 @@ export class DiceStage {
       this.snapping.push({ die, from: cur, to: target, start: performance.now(), duration: forced ? 420 : 160 });
     }
     this.rolling = false;
+    this.camera.fov = this.baseFov;
+    this.camera.updateProjectionMatrix();
     const resolve = this._resolveRoll;
     this._resolveRoll = null;
     setTimeout(() => resolve && resolve(values), forced ? 420 : 160);
@@ -353,9 +359,14 @@ export class DiceStage {
     const dt = Math.min(this._clock.getDelta(), 0.05);
     this.t += dt;
     if (this.rolling) {
-      this.world.step(1 / 120, dt, 8);
+      const now = performance.now();
+      let scale = 1;
+      if (this.slowmo.until > now) scale = 0.35;
+      this.world.step(1 / 120, dt * scale, 8);
       let calm = true;
+      let maxSpeed = 0;
       for (const die of this.dice) {
+        maxSpeed = Math.max(maxSpeed, die.phys.velocity.length());
         const p = die.phys;
         die.group.position.copy(p.position);
         die.group.quaternion.copy(p.quaternion);
@@ -363,7 +374,16 @@ export class DiceStage {
         // Sicherheitsnetz: aus der Arena gefallen?
         if (p.position.y < -2) { p.position.set(0, 3, 0); p.velocity.set(0, 0, 0); }
       }
-      const elapsed = performance.now() - this.rollStart;
+      const elapsed = now - this.rollStart;
+      // Einmal kurz Zeitlupe, wenn die Würfel fast liegen – der dramatische Moment.
+      if (!this.slowmo.done && !this.reducedMotion && elapsed > 900 && maxSpeed < 2.2 && !calm) {
+        this.slowmo = { done: true, until: now + 420 };
+      }
+      const wantFov = this.slowmo.until > now ? this.baseFov - 4 : this.baseFov;
+      if (Math.abs(this.camera.fov - wantFov) > 0.01) {
+        this.camera.fov += (wantFov - this.camera.fov) * 0.12;
+        this.camera.updateProjectionMatrix();
+      }
       if (calm && elapsed > 500) this.settledFrames++; else this.settledFrames = 0;
       if (this.settledFrames > 14) this._finishRoll(false);
       else if (elapsed > 6500) this._finishRoll(true);
