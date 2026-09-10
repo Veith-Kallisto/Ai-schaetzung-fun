@@ -104,7 +104,7 @@ function setGenie(state) {
   if (state === 'reveal') els.genie.classList.add('reveal');
   if (state === 'sad') els.genie.classList.add('sad');
   const cap = state === 'reveal' || state === 'sad' ? C.STAGE_CAPTIONS.result : C.STAGE_CAPTIONS[state] || C.STAGE_CAPTIONS.idle;
-  if (stage || state !== 'idle') els.caption.textContent = cap;
+  els.caption.textContent = (!stage && state === 'idle') ? C.STAGE_CAPTIONS.noWebgl : cap;
 }
 function flashStage(mood) {
   if (reduced) return;
@@ -144,7 +144,7 @@ function initStage() {
     console.warn('3D-Bühne nicht verfügbar:', err);
     stage = null;
     els.stage.classList.add('no-webgl');
-    els.caption.textContent = 'Kein WebGL – Jini würfelt im Kopf.';
+    els.caption.textContent = C.STAGE_CAPTIONS.noWebgl;
   }
 }
 
@@ -169,20 +169,20 @@ function addGenieText(paragraphs) {
 /** Tipp-Indikator mit wechselnden Orakel-Sprüchen. */
 function showThinking(lines) {
   const { wrap, bubble } = addMessage('genie', '');
-  bubble.innerHTML = '<div class="typing"><span class="dots"><i></i><i></i><i></i></span><span class="thinking-line"></span></div>';
-  const lineEl = bubble.querySelector('.thinking-line');
+  bubble.innerHTML = '<div class="typing" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="thinking-line"></span></div>';
+  let lineEl = bubble.querySelector('.thinking-line');
   let i = 0;
-  const show = () => {
+  const show = (text) => {
     const fresh = lineEl.cloneNode(false);
-    fresh.textContent = lines[i % lines.length];
+    fresh.textContent = text ?? lines[i % lines.length];
     lineEl.replaceWith(fresh);
-    bubble.querySelector('.thinking-line').textContent = fresh.textContent;
+    lineEl = fresh;
     i++;
   };
   show();
-  const timer = setInterval(show, 950);
+  const timer = setInterval(() => show(), 950);
   return {
-    setLine(text) { clearInterval(timer); bubble.querySelector('.thinking-line').textContent = text; },
+    setLine(text) { clearInterval(timer); show(text); },
     remove() { clearInterval(timer); wrap.remove(); },
   };
 }
@@ -355,7 +355,9 @@ function renderResult(res, text) {
 
 async function copyResult(res, text, btn) {
   const factors = res.rows.filter((r) => r.value.startsWith('×')).map((r) => `${r.label} ${r.value}`).join(', ');
-  const line = `🧞 Schätzung laut Jini: ${fmt.format(res.value)} ${res.unitLabel} für „${text}“ · Würfel ${res.dice[0]} + ${res.dice[1]}${factors ? ' · Faktoren: ' + factors : ''} · ${res.confidence}. Belastbar wie gewürfelt. #JiniSchätzt`;
+  const short = text.replace(/\s+/g, ' ').trim();
+  const quoted = short.length > 120 ? short.slice(0, 117) + '…' : short;
+  const line = `🧞 Schätzung laut Jini: ${fmt.format(res.value)} ${res.unitLabel} für „${quoted}“ · Würfel ${res.dice[0]} + ${res.dice[1]}${factors ? ' · Faktoren: ' + factors : ''} · ${res.confidence}. Belastbar wie gewürfelt. #JiniSchätzt`;
   try {
     await navigator.clipboard.writeText(line);
     btn.textContent = '✓ Kopiert';
@@ -385,12 +387,14 @@ function celebrate(res) {
   }
 }
 
+let hadFocus = false;
 function setBusy(b) {
+  if (b) hadFocus = document.activeElement === els.input;
   busy = b;
   els.send.disabled = b;
   els.input.disabled = b;
   els.reset.disabled = b;
-  if (!b) els.input.focus({ preventScroll: true });
+  if (!b && hadFocus && window.matchMedia('(pointer: fine)').matches) els.input.focus({ preventScroll: true });
 }
 
 async function estimate(text, opts = {}) {

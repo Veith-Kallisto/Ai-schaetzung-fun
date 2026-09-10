@@ -355,7 +355,7 @@ button { font: inherit; }
 }
 .bubble { padding: 11px 15px; border-radius: 18px; min-width: 0; overflow-wrap: anywhere; }
 .msg.genie .bubble { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
-.msg.user .bubble { background: linear-gradient(135deg, #3b2f78, #2a2254); border: 1px solid rgba(245, 184, 75, 0.28); border-bottom-right-radius: 6px; }
+.msg.user .bubble { background: linear-gradient(135deg, #3b2f78, #2a2254); border: 1px solid rgba(245, 184, 75, 0.28); border-bottom-right-radius: 6px; white-space: pre-wrap; }
 .msg.wide .bubble { flex: 1 1 auto; }
 .bubble p { margin: 0 0 6px; }
 .bubble p:last-child { margin: 0; }

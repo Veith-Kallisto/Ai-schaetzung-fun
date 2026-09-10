@@ -44,9 +44,11 @@ if (watch) {
   const ctx = await context({ entryPoints: ['src/main.js'], bundle: true, write: false, logLevel: 'silent' });
   await bundleOnce();
   const { watch: fsWatch } = await import('node:fs');
-  for (const f of ['src/main.js', 'src/styles.css', 'src/index.html']) {
-    fsWatch(f, () => bundleOnce().catch((e) => console.error(e.message)));
-  }
+  let pending = null;
+  fsWatch('src', { recursive: true }, () => {
+    clearTimeout(pending);
+    pending = setTimeout(() => bundleOnce().catch((e) => console.error(e.message)), 80);
+  });
   console.log('Watch-Modus: src/ wird beobachtet …');
   await ctx.watch();
 } else {

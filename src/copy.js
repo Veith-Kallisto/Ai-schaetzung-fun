@@ -57,11 +57,11 @@ export const KEYWORD_FACTORS = [
   { re: /\bnur\b/i, label: 'Kunde sagt „nur“', mult: 3 },
   { re: /\bmal eben\b|\beben mal\b|\bschnell\b|\bkurz\b|\bkurzfristig\b|\bzack\b/i, label: '„Kurz mal eben“-Zuschlag', mult: 2 },
   { re: /\beinfach\b|\bsimpel\b|\btrivial\b|\beasy\b|no-?brainer|\bkein problem\b/i, label: '„Ist doch einfach“-Faktor', mult: 2.5 },
-  { re: /\bklein(e|es|er|en)?\s+(änderung|anpassung|feature|fix|sache|ding|erweiterung)\b|\bkleinigkeit\b|\bwinzig/i, label: 'Die berühmte kleine Änderung', mult: 4 },
+  { re: /\bklein(e|es|er|en)?\s+(änderung|anpassung|feature|fix|sache|ding|erweiterung)(en|es|s|e)?\b|\bkleinigkeit\b|\bwinzig/i, label: 'Die berühmte kleine Änderung', mult: 4 },
   { re: /excel|xlsx|\bcsv\b|tabelle|makro|\bvba\b/i, label: 'Excel als Datenbank', mult: 4 },
-  { re: /\bsap\b|abap|s\/?4 ?hana|fiori/i, label: 'SAP-Konstante (π)', mult: 3.14 },
+  { re: /(^|[^\p{L}\d])sap(?![\p{L}\d])|abap|s\/?4 ?hana|fiori/iu, label: 'SAP-Konstante (π)', mult: 3.14 },
   { re: /pi mal daumen|über den daumen|\bgrob\b/i, label: 'Pi mal Daumen', mult: 3.14 },
-  { re: /\bki\b|\bai\b|künstliche intelligenz|\bllm\b|chatgpt|\bgpt\b|copilot|machine ?learning|genai/i, label: 'Buzzword-Zuschlag (KI)', mult: 1.5 },
+  { re: /(^|[^\p{L}\d])(ki|ai|llm|gpt|genai)(?![\p{L}\d])|künstliche intelligenz|chatgpt|copilot|machine ?learning/iu, label: 'Buzzword-Zuschlag (KI)', mult: 1.5 },
   { re: /legacy|altsystem|alt(es|e|en)? system|cobol|mainframe|as\/?400|visual ?basic|\bvb6?\b|lotus ?notes|von 20(0|1)\d/i, label: 'Legacy-Archäologie', mult: 3 },
   { re: /migration|migrier|umzug|umzieh|ablös/i, label: 'Migrations-Realität', mult: 2 },
   { re: /deadline|dringend|asap|sofort|gestern|bis (morgen|übermorgen|montag|freitag|ende der woche|nächste)/i, label: 'Deadline-Panik', mult: 2 },
@@ -72,7 +72,7 @@ export const KEYWORD_FACTORS = [
   { re: /kunde|kundin|stakeholder|fachbereich|abteilung|einkauf/i, label: 'Stakeholder-Faktor', mult: 1.5 },
   { re: /button|knopf|schaltfläche/i, label: 'Ein Button ist nie nur ein Button', mult: 2.5 },
   { re: /login|anmeld|\bsso\b|oauth|passwort|keycloak|active ?directory/i, label: 'SSO-Sumpf', mult: 2 },
-  { re: /\blogo\b|farbe|schrift|\bfont\b|\bcss\b|design|frontend|\bui\b|\bux\b/i, label: '„Nur was Optisches“', mult: 1.8 },
+  { re: /(^|[^\p{L}\d])(logo|font|css|ui|ux)(?![\p{L}\d])|farbe|schrift|design|frontend/iu, label: '„Nur was Optisches“', mult: 1.8 },
   { re: /cloud|kubernetes|\bk8s\b|docker|serverless|azure|\baws\b|\bgcp\b/i, label: 'Cloud-Native-Steuer', mult: 2 },
   { re: /microservice|event-?driven|kafka/i, label: 'Microservice-Verteilungswahn', mult: 2 },
   { re: /blockchain|web3|\bnft\b|metaverse|krypto/i, label: 'Hype-Zyklus 2021 (will keiner mehr)', mult: 0.5 },
@@ -93,7 +93,7 @@ export const KEYWORD_FACTORS = [
   { re: /drucker|wlan|outlook|teams|sharepoint|wordpress|typo3/i, label: 'SharePoint-Trauma', mult: 2 },
   { re: /ganz(e|es|en)? (system|projekt|plattform|unternehmen)|\balles\b|komplett|neu (machen|bauen|schreiben)|neubau|greenfield|from scratch|rewrite|relaunch|neuentwicklung/i, label: 'Rewrite-Größenwahn', mult: 3 },
   { re: /\bbug\b|fehler|hotfix|kaputt|geht nicht|funktioniert nicht|absturz/i, label: 'Hotfix zieht Hotfix nach sich', mult: 2 },
-  { re: /datenbank|\bdb\b|\bsql\b|oracle|postgres|schema/i, label: 'Datenbank-Schema von damals', mult: 1.7 },
+  { re: /datenbank|(^|[^\p{L}\d])(db|sql)(?![\p{L}\d])|oracle|postgres|schema/iu, label: 'Datenbank-Schema von damals', mult: 1.7 },
   { re: /performance|langsam|schneller machen|optimier/i, label: '„Es ist halt langsam“', mult: 2 },
   { re: /fast fertig|nur noch|90 ?%|letzte[nr]? (schritt|meter|prozent)/i, label: 'Die letzten 10 % (= 90 % der Zeit)', mult: 3 },
   { re: /update|upgrade|aktualisier/i, label: 'Update „ohne Breaking Changes“', mult: 2 },
@@ -137,11 +137,11 @@ export const MOOD_FACTORS = {
 };
 
 export const UNITS = {
-  pt: { key: 'pt', singular: 'Personentag', plural: 'Personentage', re: /personentag|\bpt\b|aufwand|tage?\b|wie lange|dauer|wie viel arbeit|manntag|kapazität/i },
-  sp: { key: 'sp', singular: 'Story Point', plural: 'Story Points', re: /story ?points?|\bsp\b|sprint|scrum|jira|ticket|backlog|user ?story|\bepic\b|planning/i },
+  pt: { key: 'pt', singular: 'Personentag', plural: 'Personentage', re: /personentag|(^|[^\p{L}\d])pt(?![\p{L}\d])|aufwand|tage?(?![\p{L}])|wie lange|dauer|wie viel arbeit|manntag|kapazität/iu },
+  sp: { key: 'sp', singular: 'Story Point', plural: 'Story Points', re: /story ?points?|(^|[^\p{L}\d])(sp|epic)(?![\p{L}\d])|sprint|scrum|jira|ticket|backlog|user ?story|planning/iu },
   weeks: { key: 'weeks', singular: 'Woche', plural: 'Wochen', re: /\bwann\b|fertig|termin|monat|jahr|quartal|release|go.?live|launch|deadline|roadmap|zeitplan|wochen?\b/i },
   eur: { key: 'eur', singular: '€', plural: '€', re: /€|euro|kost|budget|preis|teuer|geld|rechnung|angebot|honorar|bezahl|tagessatz|invest/i },
-  hours: { key: 'hours', singular: 'Stunde', plural: 'Stunden', re: /stunden?|\bstd\b|\bh\b/i },
+  hours: { key: 'hours', singular: 'Stunde', plural: 'Stunden', re: /stunden?|(^|[^\p{L}\d])(std|h)(?![\p{L}\d])/iu },
 };
 export const UNIT_ORDER = ['eur', 'sp', 'hours', 'weeks', 'pt'];
 export const DAY_RATE = 1850;
@@ -266,6 +266,7 @@ export const STAGE_CAPTIONS = {
   thinking: 'Jini denkt. Das dauert nie lange.',
   rolling: 'Die Würfel fallen …',
   result: 'Gewürfelt. Unwiderruflich.',
+  noWebgl: 'Kein WebGL – Jini würfelt im Kopf.',
 };
 
 export const SLAMS = {

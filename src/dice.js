@@ -98,6 +98,7 @@ export class DiceStage {
     this.rolling = false;
     this.snapping = [];
     this.lastCollideAt = 0;
+    this.rollStart = 0;
     this.t = 0;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -227,6 +228,7 @@ export class DiceStage {
     phys.addEventListener('collide', (e) => {
       const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
       const now = performance.now();
+      if (now - this.rollStart < 120) return; // Startkontakte beim Einsortieren ignorieren
       if (v > 1.2 && now - this.lastCollideAt > 45) {
         this.lastCollideAt = now;
         this.onCollide(Math.min(1, v / 14));
@@ -327,16 +329,17 @@ export class DiceStage {
       p.wakeUp();
       const lane = (Math.random() - 0.5) * (portrait ? w : d) * 0.9;
       if (portrait) {
-        p.position.set(lane + (i - 0.5) * 0.9, 1.6 + i * 1.1, -d + 0.6);
+        p.position.set(lane + (i - 0.5) * 1.3, 1.6 + i * 1.8, -d + 1.3);
         p.velocity.set((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, 8 + Math.random() * 3);
       } else {
-        p.position.set(-w + 0.6, 1.6 + i * 1.1, lane + (i - 0.5) * 0.9);
+        p.position.set(-w + 1.3, 1.6 + i * 1.8, lane + (i - 0.5) * 1.3);
         p.velocity.set(8 + Math.random() * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3);
       }
       p.angularVelocity.set(rnd(9, 18) * sign(), rnd(9, 18) * sign(), rnd(9, 18) * sign());
       p.quaternion.setFromEuler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
     });
     this.rollStart = performance.now();
+    this.simTime = 0;
     this.settledFrames = 0;
     this.slowmo = { done: false, until: 0 };
     this.baseFov = this.camera.fov;
@@ -388,6 +391,7 @@ export class DiceStage {
       let scale = 1;
       if (this.slowmo.until > now) scale = 0.35;
       this.world.step(1 / 120, dt * scale, 8);
+      this.simTime += dt * scale;
       let calm = true;
       let maxSpeed = 0;
       for (const die of this.dice) {
@@ -400,8 +404,9 @@ export class DiceStage {
         if (p.position.y < -2) { p.position.set(0, 3, 0); p.velocity.set(0, 0, 0); }
       }
       const elapsed = now - this.rollStart;
+      const simMs = this.simTime * 1000;
       // Einmal kurz Zeitlupe, wenn die Würfel fast liegen – der dramatische Moment.
-      if (!this.slowmo.done && !this.reducedMotion && elapsed > 900 && maxSpeed < 2.2 && !calm) {
+      if (!this.slowmo.done && !this.reducedMotion && simMs > 900 && maxSpeed < 2.2 && !calm) {
         this.slowmo = { done: true, until: now + 420 };
       }
       const wantFov = this.slowmo.until > now ? this.baseFov - 4 : this.baseFov;
@@ -409,9 +414,9 @@ export class DiceStage {
         this.camera.fov += (wantFov - this.camera.fov) * 0.12;
         this.camera.updateProjectionMatrix();
       }
-      if (calm && elapsed > 500) this.settledFrames++; else this.settledFrames = 0;
+      if (calm && simMs > 500) this.settledFrames++; else this.settledFrames = 0;
       if (this.settledFrames > 14) this._finishRoll(false);
-      else if (elapsed > 6500) this._finishRoll(true);
+      else if (simMs > 6500 || elapsed > 9000) this._finishRoll(true);
     }
     // sanftes Einrasten nach dem Wurf
     if (this.snapping.length) {
