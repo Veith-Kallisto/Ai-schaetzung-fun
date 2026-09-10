@@ -545,7 +545,7 @@ setInterval(() => {
 }, 9000);
 
 function syncPlaceholder() {
-  els.input.placeholder = window.innerWidth >= 900 ? C.PLACEHOLDER_WIDE : C.PLACEHOLDER_NARROW;
+  els.input.placeholder = window.innerWidth >= 1100 ? C.PLACEHOLDER_WIDE : C.PLACEHOLDER_NARROW;
 }
 window.addEventListener('resize', syncPlaceholder);
 

@@ -273,7 +273,7 @@ export const SLAMS = {
   snake: 'Kritischer Fehlschlag',
 };
 
-export const PLACEHOLDER_WIDE = 'Beschreib dein Vorhaben … z. B. „Nur kurz die Datenbank migrieren“';
+export const PLACEHOLDER_WIDE = 'Dein Vorhaben … z. B. „Nur kurz das Logo tauschen“';
 export const PLACEHOLDER_NARROW = 'Was soll Jini schätzen?';
 
 export const FIB = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765];
