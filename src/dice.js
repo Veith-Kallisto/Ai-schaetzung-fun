@@ -215,7 +215,11 @@ export class DiceStage {
     this._clock = new THREE.Clock();
     this._frame = this._frame.bind(this);
     this._loopRunning = false;
-    this.wake();
+    // Shader zuerst asynchron kompilieren, dann erst zeichnen – blockiert den Start nicht.
+    this._ready = false;
+    const start = () => { if (!this._ready) { this._ready = true; this.wake(); } };
+    Promise.resolve(this.renderer.compileAsync(this.scene, this.camera)).then(start, start);
+    setTimeout(start, 1500);
   }
 
   createDie(index) {
@@ -285,7 +289,7 @@ export class DiceStage {
   }
 
   wake() {
-    if (!this._loopRunning) {
+    if (this._ready && !this._loopRunning) {
       this._loopRunning = true;
       this.renderer.setAnimationLoop(this._frame);
     }
@@ -350,7 +354,7 @@ export class DiceStage {
       die.group.position.copy(die.phys.position);
       die.group.quaternion.copy(q);
     });
-    this.render();
+    if (this._ready) this.render();
   }
 
   /** Wirft die Würfel und liefert die Augenzahlen, sobald sie liegen. */
